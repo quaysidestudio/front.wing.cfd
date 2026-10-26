@@ -1,0 +1,569 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="Three-element motorsport front wing studied in Ansys Fluent: validation, mesh study, ride-height and flap sweeps, and 3D tip vortices.">
+<style>[hidden]{display:none!important}img{max-width:100%}body{margin:0}</style>
+<title>Front Wing Ground-Effect CFD</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: an engineering test report — title block, numbered test stages in sequence, figures that break wider than the reading column. */
+:root{
+  --paper:#f2f4f6; --sheet:#ffffff; --ink:#15202b; --ink-2:#4a5866; --ink-3:#7b8794;
+  --rule:#d5dbe1; --grid:#e6eaee; --accent:#1c46c9; --accent-soft:#e3e9fb;
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --ref:#7b8794;
+  --warn:#b4401b; --good:#1d7a4f;
+  --display:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
+  --body:"Source Sans 3","Segoe UI",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --jet:linear-gradient(90deg,#1b1bd6 0%,#1f8be8 22%,#22c9c9 40%,#9be03c 58%,#f4c430 74%,#ef6a1f 88%,#c4141a 100%);
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#0e1318; --sheet:#151c23; --ink:#e7ecf0; --ink-2:#aab6c1; --ink-3:#7f8c98;
+  --rule:#2a3540; --grid:#222c36; --accent:#7f9cff; --accent-soft:#1c2747;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --ref:#8a96a2; --warn:#ef7a52; --good:#4fc28c;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#0e1318; --sheet:#151c23; --ink:#e7ecf0; --ink-2:#aab6c1; --ink-3:#7f8c98;
+  --rule:#2a3540; --grid:#222c36; --accent:#7f9cff; --accent-soft:#1c2747;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --ref:#8a96a2; --warn:#ef7a52; --good:#4fc28c;
+  color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font-family:var(--body);font-size:17px;line-height:1.6;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 64px}
+.wrap{max-width:1120px;margin:0 auto}
+.col{max-width:700px}
+h1,h2,h3{font-family:var(--display);font-weight:700;line-height:1.05;text-wrap:balance;margin:0;letter-spacing:.005em}
+h1{font-size:clamp(2.6rem,6.4vw,4.6rem);text-transform:uppercase}
+h2{font-size:clamp(1.9rem,3.6vw,2.6rem);text-transform:uppercase}
+h3{font-size:1.35rem;text-transform:uppercase;letter-spacing:.02em}
+p{margin:0}
+.mono,.label{font-family:var(--mono)}
+.label{font-size:.72rem;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3)}
+a{color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+
+/* jet colour-bar rule — the Fluent colormap as the page's one signature device */
+.jet{height:6px;background:var(--jet);border-radius:1px}
+
+/* hero */
+.hero{padding-top:40px;display:grid;gap:24px}
+.hero .kicker{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center}
+.hero .lede{font-size:1.2rem;color:var(--ink-2);max-width:62ch}
+.herofig{margin:0;background:#202020;border-radius:6px;overflow:hidden;position:relative}
+.herofig video{display:block;width:100%;height:auto;aspect-ratio:1280/756}
+.herofig figcaption{position:absolute;left:14px;bottom:12px;font-family:var(--mono);font-size:.72rem;color:#dfe5ea;background:rgba(0,0,0,.45);padding:4px 8px;border-radius:3px}
+
+/* title block like a drawing sheet */
+.tblock{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border:1px solid var(--ink);background:var(--sheet)}
+.tblock>div{padding:10px 12px;border-right:1px solid var(--rule);min-width:0}
+.tblock>div:last-child{border-right:0}
+.tblock .v{font-weight:600;font-size:.98rem;line-height:1.35;margin-top:2px}
+@media (max-width:760px){.tblock{grid-template-columns:repeat(2,minmax(0,1fr))}.tblock>div:nth-child(2){border-right:0}.tblock>div:nth-child(-n+2){border-bottom:1px solid var(--rule)}}
+
+/* headline numbers */
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;border-top:2px solid var(--ink);border-bottom:1px solid var(--rule)}
+.stat{padding:16px 16px 18px 0;min-width:0}
+.stat+.stat{padding-left:16px;border-left:1px solid var(--rule)}
+.stat .n{font-family:var(--display);font-weight:700;font-size:clamp(2.1rem,4.4vw,3.1rem);line-height:1;font-variant-numeric:tabular-nums}
+.stat .n small{font-size:.5em;font-weight:600;color:var(--ink-2);margin-left:3px}
+.stat .d{font-size:.92rem;color:var(--ink-2);margin-top:6px;line-height:1.35}
+@media (max-width:760px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.stat:nth-child(3){padding-left:0;border-left:0}.stat:nth-child(-n+2){border-bottom:1px solid var(--rule)}}
+
+/* process strip */
+.steps{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:2px}
+.steps li{background:var(--sheet);border:1px solid var(--rule);padding:12px 12px 14px;min-width:0}
+.steps a{text-decoration:none;color:inherit;display:block}
+.steps .no{font-family:var(--mono);font-size:.72rem;color:var(--accent)}
+.steps .t{font-family:var(--display);font-weight:600;font-size:1.12rem;text-transform:uppercase;line-height:1.1;margin-top:4px}
+.steps .s{font-size:.82rem;color:var(--ink-2);margin-top:4px;line-height:1.3}
+@media (max-width:860px){.steps{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:480px){.steps{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* sections */
+section{padding-top:72px;display:grid;gap:22px;scroll-margin-top:16px}
+.sechead{display:grid;gap:10px}
+.sechead .no{font-family:var(--mono);font-size:.8rem;color:var(--accent);letter-spacing:.06em}
+.prose{display:grid;gap:14px}
+.prose p{max-width:68ch}
+.callout{border-left:3px solid var(--accent);background:var(--accent-soft);padding:12px 16px;max-width:72ch}
+.callout b{font-weight:700}
+
+/* figures */
+figure{margin:0}
+.fig{display:grid;gap:8px;min-width:0;align-content:start}
+.fig img,.fig video{display:block;width:100%;height:auto;border-radius:4px;border:1px solid var(--rule);background:var(--sheet)}
+.fig img{cursor:zoom-in}
+.fig figcaption{font-size:.88rem;color:var(--ink-2);line-height:1.4}
+.fig figcaption b{color:var(--ink);font-weight:600}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+@media (max-width:760px){.grid2,.grid3{grid-template-columns:minmax(0,1fr)}}
+.vids video{background:#202020}
+
+/* comparison matrix of contours */
+.matrix{display:grid;grid-template-columns:auto repeat(3,minmax(0,1fr));gap:10px 12px;align-items:center}
+.matrix .rl{font-family:var(--mono);font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-3);writing-mode:vertical-rl;transform:rotate(180deg);text-align:center}
+.matrix .ch{font-family:var(--display);font-weight:600;text-transform:uppercase;font-size:1.1rem}
+.matrix img{display:block;width:100%;height:auto;border:1px solid var(--rule);border-radius:3px;cursor:zoom-in}
+.mscroll{overflow-x:auto}
+.mscroll .matrix{min-width:620px}
+
+/* tables */
+.tbl{overflow-x:auto;border-top:2px solid var(--ink)}
+table{border-collapse:collapse;width:100%;font-size:.93rem;font-variant-numeric:tabular-nums}
+th,td{padding:8px 12px 8px 0;text-align:right;border-bottom:1px solid var(--rule);white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+thead th{font-family:var(--mono);font-weight:500;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+tr.hl td{font-weight:700}
+td.neg{color:var(--warn)}
+td.pos{color:var(--good)}
+
+/* charts */
+.chart{background:var(--sheet);border:1px solid var(--rule);border-radius:4px;padding:14px 14px 8px;position:relative;min-width:0}
+.chart h4{margin:0 0 2px;font-family:var(--body);font-size:1rem;font-weight:700}
+.chart .sub{font-size:.85rem;color:var(--ink-2);margin-bottom:6px}
+.legend{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:.84rem;color:var(--ink-2);margin-bottom:4px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{display:inline-block;width:14px;height:3px;border-radius:2px}
+.legend i.dash{background:repeating-linear-gradient(90deg,var(--ref) 0 4px,transparent 4px 7px)!important;height:2px}
+.legend i.sq{width:10px;height:10px;border-radius:2px}
+svg.c{display:block;width:100%;height:auto;overflow:visible}
+svg.c text{font-family:var(--mono);font-size:12px;fill:var(--ink-3)}
+@media (max-width:600px){svg.c text{font-size:17px}}
+svg.c .ax{stroke:var(--ink-3);stroke-width:1}
+svg.c .gl{stroke:var(--grid);stroke-width:1}
+svg.c .t{fill:var(--ink-2)}
+svg.c .lbl{fill:var(--ink);font-weight:500}
+.tip{position:absolute;pointer-events:none;background:var(--ink);color:var(--paper);font-size:.8rem;line-height:1.35;padding:6px 9px;border-radius:4px;white-space:nowrap;font-variant-numeric:tabular-nums;z-index:5}
+.tip b{font-weight:700}
+
+/* log of problems */
+.log{display:grid;gap:0;border-top:2px solid var(--ink)}
+.log>div{display:grid;grid-template-columns:150px minmax(0,1fr) minmax(0,1fr);gap:16px;padding:14px 0;border-bottom:1px solid var(--rule)}
+.log .k{font-family:var(--display);font-weight:600;font-size:1.1rem;text-transform:uppercase;line-height:1.1}
+.log .c,.log .f{font-size:.94rem;color:var(--ink-2)}
+.log .c b,.log .f b{color:var(--ink)}
+.log .h{font-family:var(--mono);font-size:.68rem;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-3);display:block;margin-bottom:2px}
+@media (max-width:760px){.log>div{grid-template-columns:minmax(0,1fr);gap:6px}}
+
+.spec{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 28px}
+.spec dl{margin:0;display:grid;grid-template-columns:auto minmax(0,1fr);gap:0 14px;border-top:2px solid var(--ink)}
+.spec dt,.spec dd{margin:0;padding:7px 0;border-bottom:1px solid var(--rule);font-size:.92rem}
+.spec dt{color:var(--ink-3);font-family:var(--mono);font-size:.74rem;text-transform:uppercase;letter-spacing:.06em;padding-top:9px}
+.spec dd{font-variant-numeric:tabular-nums}
+@media (max-width:760px){.spec{grid-template-columns:minmax(0,1fr);gap:22px}}
+
+.cols2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:28px}
+@media (max-width:760px){.cols2{grid-template-columns:minmax(0,1fr)}}
+ul.clean{margin:0;padding-left:1.1em;display:grid;gap:8px}
+ul.clean li{max-width:66ch}
+
+footer{margin-top:80px;padding-top:18px;border-top:1px solid var(--rule);display:flex;flex-wrap:wrap;gap:8px 24px;justify-content:space-between;font-size:.85rem;color:var(--ink-3)}
+
+/* lightbox */
+#lb[hidden],.tip[hidden]{display:none}
+#lb{position:fixed;inset:0;background:rgba(8,12,16,.88);display:flex;align-items:center;justify-content:center;padding:max(20px,env(safe-area-inset-top,0px)) max(20px,env(safe-area-inset-right,0px)) max(20px,env(safe-area-inset-bottom,0px)) max(20px,env(safe-area-inset-left,0px));z-index:50;cursor:zoom-out}
+#lb img{max-width:100%;max-height:100%;border-radius:4px;box-shadow:0 10px 40px rgba(0,0,0,.5);background:#fff}
+@media (prefers-reduced-motion:reduce){video{animation:none}}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <div class="jet" role="presentation"></div>
+  <div class="kicker">
+    <span class="label">Personal project · CFD case study</span>
+    <span class="label">Ansys Fluent 2026 R1 · k-ω SST</span>
+  </div>
+  <h1>Three-element front wing in ground effect</h1>
+  <p class="lede">I designed a motorsport-style three-element front wing in SolidWorks and studied it in Ansys Fluent: first validating my setup on a published aerofoil, then sweeping ride height and flap angle in 2D, and finally running a 3D half-wing to see what the tip vortices cost.</p>
+  <figure class="herofig">
+    <video id="heroVid" src="media/vid_rear34.mp4" poster="media/vid_rear34_poster.jpg" autoplay muted loop playsinline aria-label="Animated streamlines leaving both endplates of the 3D wing and rolling up into tip vortices"></video>
+    <figcaption>3D · streamlines coloured by velocity, 15–60 m/s</figcaption>
+  </figure>
+  <div class="tblock" aria-label="Project details">
+    <div><span class="label">Author</span><div class="v">Cooper<br>Mech. Eng., Year 1 · QUB</div></div>
+    <div><span class="label">Tools</span><div class="v">SolidWorks 2026<br>Ansys Fluent / CFD-Post</div></div>
+    <div><span class="label">Conditions</span><div class="v">30 m/s · Re ≈ 5.1×10⁵<br>moving ground</div></div>
+    <div><span class="label">Date</span><div class="v">October 2026<br>Student licence (&lt;1M cells)</div></div>
+  </div>
+  <div class="stats">
+    <div class="stat"><div class="n">1,375<small>N/m</small></div><div class="d">Peak 2D downforce, at 50 mm ride height</div></div>
+    <div class="stat"><div class="n">2.27<small>×</small></div><div class="d">Downforce in ground effect vs free air (50 mm)</div></div>
+    <div class="stat"><div class="n">−29<small>%</small></div><div class="d">Downforce lost at 25 mm, when the wake reverses</div></div>
+    <div class="stat"><div class="n">−36<small>%</small></div><div class="d">3D downforce per metre vs 2D, from tip vortices</div></div>
+  </div>
+</header>
+
+<section id="process" aria-labelledby="process-h">
+  <div class="sechead"><span class="no">00 · Route</span><h2 id="process-h">How the study was built</h2></div>
+  <ol class="steps">
+    <li><a href="#validation"><div class="no">01</div><div class="t">Validate</div><div class="s">S1223 vs XFoil</div></a></li>
+    <li><a href="#setup"><div class="no">02</div><div class="t">Set up</div><div class="s">Geometry, domain, mesh</div></a></li>
+    <li><a href="#mesh"><div class="no">03</div><div class="t">Mesh study</div><div class="s">3 refinement levels</div></a></li>
+    <li><a href="#rideheight"><div class="no">04</div><div class="t">Ride height</div><div class="s">25–150 mm + free air</div></a></li>
+    <li><a href="#flap"><div class="no">05</div><div class="t">Flap angle</div><div class="s">15°, 20°, 25°</div></a></li>
+    <li><a href="#threed"><div class="no">06</div><div class="t">3D wing</div><div class="s">Tip vortices</div></a></li>
+  </ol>
+</section>
+
+<section id="validation" aria-labelledby="val-h">
+  <div class="sechead"><span class="no">01 · Validation</span><h2 id="val-h">Checking the method on a known aerofoil</h2></div>
+  <div class="prose col">
+    <p>Before trusting any results on my own wing, I modelled the Selig S1223 high-lift aerofoil on its own (250 mm chord, 30 m/s, Re ≈ 5.1×10⁵) and compared Fluent's k-ω SST results with XFoil at three angles of attack.</p>
+  </div>
+  <div class="cols2">
+    <div class="chart" id="chVal"><h4>Lift coefficient vs angle of attack</h4><div class="sub">S1223, Re = 5×10⁵</div></div>
+    <div class="tbl" style="align-self:start">
+      <table>
+        <thead><tr><th>α</th><th>Fluent C<sub>l</sub></th><th>XFoil C<sub>l</sub></th><th>Error</th><th>Fluent C<sub>d</sub></th><th>XFoil C<sub>d</sub></th><th>Error</th></tr></thead>
+        <tbody>
+          <tr><td>0°</td><td>1.000</td><td>1.185</td><td>−15.6%</td><td>0.0182</td><td>0.0137</td><td>+32%</td></tr>
+          <tr><td>4°</td><td>1.411</td><td>1.637</td><td>−13.8%</td><td>0.0219</td><td>0.0169</td><td>+29%</td></tr>
+          <tr><td>8°</td><td>1.758</td><td>2.013</td><td>−12.7%</td><td>0.0290</td><td>0.0215</td><td>+35%</td></tr>
+          <tr class="hl"><td>Slope</td><td>0.095/°</td><td>0.104/°</td><td>within 9%</td><td></td><td></td><td></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="callout col"><b>Why the offset?</b> The lift-curve slope agrees within 9%, but C<sub>l</sub> sits 13–16% low and C<sub>d</sub> about 30% high at every angle. XFoil predicts laminar flow over the first 33–42% of the upper surface. k-ω SST assumes the boundary layer is turbulent everywhere, which raises skin friction and thickens the boundary layer at the trailing edge. A consistent, explainable offset like this means the setup is behaving properly.</div>
+  <div class="grid3">
+    <figure class="fig"><img src="media/val_vmag.png" alt="Velocity magnitude around the S1223 aerofoil, fastest flow over the upper surface"><figcaption><b>Velocity magnitude</b> at 4°: flow accelerates to about 50 m/s over the upper surface.</figcaption></figure>
+    <figure class="fig"><img src="media/val_pres.png" alt="Static pressure around the S1223, strong suction peak near the leading edge"><figcaption><b>Static pressure</b>: suction peak near the leading edge, high pressure underneath.</figcaption></figure>
+    <figure class="fig"><img src="media/val_path.png" alt="Pathlines around the S1223 coloured by velocity"><figcaption><b>Pathlines</b> from a 40-point rake ahead of the aerofoil.</figcaption></figure>
+  </div>
+</section>
+
+<section id="setup" aria-labelledby="setup-h">
+  <div class="sechead"><span class="no">02 · Setup</span><h2 id="setup-h">My wing, domain and mesh</h2></div>
+  <div class="prose col">
+    <p>The wing uses the S1223 profile, inverted for downforce, as three elements: a 250 mm main plane and two flaps scaled to 60% and 40%. In 2D it sits above a moving ground in a domain 12.5 m long and 5 m tall. The 3D model is an 800 mm half-span with a 10 mm endplate, solved with a symmetry plane on the centreline.</p>
+  </div>
+  <figure class="fig"><img src="media/h50_vmag_zoom.png" alt="2D velocity contour of the three-element wing at 50 mm ride height with a fast red channel under the main plane"><figcaption><b>Baseline, 50 mm ride height.</b> The air squeezed between the main plane and the ground reaches about 100 m/s, more than three times the freestream speed. That low-pressure channel produces most of the downforce. Slot jets feed each flap.</figcaption></figure>
+  <div class="spec">
+    <dl>
+      <dt>Profile</dt><dd>Selig S1223, inverted</dd>
+      <dt>Main plane</dt><dd>250 mm chord</dd>
+      <dt>Flap 1</dt><dd>150 mm chord, ~20°</dd>
+      <dt>Flap 2</dt><dd>100 mm chord, ~35°</dd>
+      <dt>Slot 1</dt><dd>7.35 mm gap, ~10 mm overlap</dd>
+      <dt>Trailing edges</dt><dd>Blunted 2–5 mm for meshing</dd>
+      <dt>Ride height</dt><dd>Ground to main-plane lowest point</dd>
+    </dl>
+    <dl>
+      <dt>Solver</dt><dd>Fluent, pressure-based, steady, coupled</dd>
+      <dt>Turbulence</dt><dd>k-ω SST, 1% intensity</dd>
+      <dt>Ground</dt><dd>Moving wall, 30 m/s</dd>
+      <dt>2D mesh</dt><dd>~45k cells, 0.5 mm wing edges, y⁺ ≈ 1</dd>
+      <dt>3D mesh</dt><dd>875k tets, 5 inflation layers</dd>
+      <dt>Schemes</dt><dd>1st order start, then 2nd order</dd>
+      <dt>Reference</dt><dd>0.25 m chord (main plane)</dd>
+    </dl>
+  </div>
+
+  <h3 style="margin-top:12px">Problems I had to solve</h3>
+  <div class="log">
+    <div><div class="k">Solution blew up</div><div class="c"><span class="h">Symptom</span>Forces grew to <b>10¹⁸²</b>; continuity stuck at 10² even with first-order schemes.</div><div class="f"><span class="h">Fix</span>Inflation layers on the 12.5 m ground made cells with an <b>aspect ratio of ~18,000</b>. The ground moves with the flow, so it doesn't need a boundary layer. I removed it from inflation.</div></div>
+    <div><div class="k">2nd order diverged</div><div class="c"><span class="h">Symptom</span>Switching to second order produced velocities of <b>242,000 m/s</b>.</div><div class="f"><span class="h">Fix</span>Two sliver cells (skewness 0.997) at a flap leading edge in the slot, where inflation layers were crushed together. Cutting the layers from 20 to 15 brought max skewness to <b>0.68</b>.</div></div>
+    <div><div class="k">Student cell limit</div><div class="c"><span class="h">Symptom</span>The first 3D mesh had <b>4.2 M</b> cells. The licence refuses anything over 1,048,576.</div><div class="f"><span class="h">Fix</span>Coarser surface sizing and 5 thicker inflation layers (y⁺ ≈ 20–50, which SST handles) got it to <b>875k</b>.</div></div>
+    <div><div class="k">3D gave lift, not downforce</div><div class="c"><span class="h">Symptom</span>Every element showed negative downforce and negative drag, at about ten times the expected size.</div><div class="f"><span class="h">Fix</span>The inlet and outlet faces were swapped, so the air ran backwards. I now check each face's centroid before naming it.</div></div>
+  </div>
+</section>
+
+<section id="mesh" aria-labelledby="mesh-h">
+  <div class="sechead"><span class="no">03 · Mesh independence</span><h2 id="mesh-h">Is the answer the mesh or the physics?</h2></div>
+  <div class="cols2">
+    <div class="prose">
+      <p>I ran the 50 mm case on three meshes, changing only the wing surface spacing. Net downforce changed by 6.7% from coarse to medium, then only 2.2% from medium to fine. The changes are shrinking, so the solution is converging. Extrapolating suggests the fine mesh is within about 1% of a mesh-independent answer, so I used it for every case after this.</p>
+      <div class="tbl">
+        <table>
+          <thead><tr><th>Mesh</th><th>Edge size</th><th>Cells</th><th>Downforce</th><th>C<sub>d</sub></th><th>Change</th></tr></thead>
+          <tbody>
+            <tr><td>Coarse</td><td>1.0 mm</td><td>25,235</td><td>1,260.6</td><td>0.420</td><td>–</td></tr>
+            <tr><td>Medium</td><td>0.75 mm</td><td>32,055</td><td>1,345.4</td><td>0.403</td><td>+6.7%</td></tr>
+            <tr class="hl"><td>Fine</td><td>0.5 mm</td><td>45,432</td><td>1,374.6</td><td>0.396</td><td>+2.2%</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="chart" id="chMesh"><h4>Net downforce vs cell count</h4><div class="sub">N per metre span, 50 mm ride height</div></div>
+  </div>
+</section>
+
+<section id="rideheight" aria-labelledby="rh-h">
+  <div class="sechead"><span class="no">04 · Ride-height sweep</span><h2 id="rh-h">How close to the ground is too close?</h2></div>
+  <div class="prose col">
+    <p>I ran six ride heights from 25 to 150 mm, plus a free-air reference with the ground moved 5 m away. Ground effect more than doubles the downforce at 50 mm. Below that, the downforce collapses.</p>
+  </div>
+  <div class="cols2">
+    <div class="chart" id="chRH"><h4>Net downforce vs ride height</h4><div class="sub">N per metre span · h/c uses the 250 mm main-plane chord</div></div>
+    <div class="chart" id="chEl"><h4>Downforce by element</h4><div class="sub">N per metre span</div></div>
+  </div>
+  <div class="cols2">
+    <div class="chart" id="chLD"><h4>Efficiency (downforce ÷ drag)</h4><div class="sub">L/D keeps rising with height</div></div>
+    <div class="prose">
+      <p><b>Peak downforce sits near 50 mm (h/c ≈ 0.2).</b> Above it the curve falls gently: 4% lower at 75 mm. Below it the curve falls steeply: 29% lower at 25 mm, with 51% more drag.</p>
+      <p><b>The main plane drives the sensitivity.</b> It depends most on the channel under the wing, falling from 1,047 N/m at 50 mm to 415 N/m in free air. The flaps peak at 75 mm and change far less.</p>
+      <p><b>Downforce and efficiency pull in opposite directions.</b> L/D rises steadily with height, from 11.9 at 25 mm to 52.8 in free air. The lowest-drag setting is never the highest-downforce one.</p>
+    </div>
+  </div>
+
+  <h3 style="margin-top:8px">Why downforce collapses at 25 mm</h3>
+  <div class="prose col"><p>The bottom row colours x-velocity from −5 to +5 m/s, so blue means air moving <em>backwards</em>. At 25 mm, the merged wake behind the flaps reverses over a region about 0.6–0.8 m long. At 50 mm the wake slows but keeps moving forwards, and in free air it hardly slows at all. The flow on the wing surfaces stays attached in every case. This is off-surface flow reversal, sometimes called wake bursting: the stronger adverse pressure gradient near the ground stalls the wake itself.</p></div>
+  <div class="mscroll">
+    <div class="matrix">
+      <span></span><div class="ch">25 mm</div><div class="ch">50 mm</div><div class="ch">Free air</div>
+      <span class="rl">Speed</span>
+      <img src="media/h25_vmag.png" alt="Velocity magnitude at 25 mm: thick dark-blue slow wake behind the wing">
+      <img src="media/h50_vmag.png" alt="Velocity magnitude at 50 mm: thinner wake">
+      <img src="media/ng_vmag.png" alt="Velocity magnitude in free air: no fast channel under the wing, thin wake">
+      <span class="rl">x-velocity</span>
+      <img src="media/h25_xvel.png" alt="x-velocity at 25 mm: large blue reversed-flow region behind the flaps">
+      <img src="media/h50_xvel.png" alt="x-velocity at 50 mm: faint slowed wake, no reversal">
+      <img src="media/ng_xvel.png" alt="x-velocity in free air: no reversal">
+    </div>
+  </div>
+
+  <div class="tbl">
+    <table>
+      <thead><tr><th>Ride height</th><th>h/c</th><th>Main</th><th>Flap 1</th><th>Flap 2</th><th>Net (N/m)</th><th>C<sub>l</sub></th><th>C<sub>d</sub></th><th>L/D</th><th>vs free air</th></tr></thead>
+      <tbody>
+        <tr><td>25 mm</td><td>0.10</td><td>759.9</td><td>164.9</td><td>56.1</td><td>980.9</td><td>7.12</td><td>0.597</td><td>11.9</td><td>+62%</td></tr>
+        <tr class="hl"><td>50 mm</td><td>0.20</td><td>1,047.0</td><td>258.9</td><td>68.7</td><td>1,374.6</td><td>9.98</td><td>0.396</td><td>25.2</td><td>+127%</td></tr>
+        <tr><td>75 mm</td><td>0.30</td><td>969.2</td><td>271.3</td><td>74.0</td><td>1,314.6</td><td>9.54</td><td>0.280</td><td>34.1</td><td>+117%</td></tr>
+        <tr><td>100 mm</td><td>0.40</td><td>854.7</td><td>256.6</td><td>72.1</td><td>1,183.4</td><td>8.59</td><td>0.217</td><td>39.6</td><td>+95%</td></tr>
+        <tr><td>125 mm</td><td>0.50</td><td>772.6</td><td>241.2</td><td>71.1</td><td>1,084.9</td><td>7.87</td><td>0.183</td><td>43.0</td><td>+79%</td></tr>
+        <tr><td>150 mm</td><td>0.60</td><td>710.4</td><td>227.6</td><td>68.8</td><td>1,006.8</td><td>7.31</td><td>0.161</td><td>45.5</td><td>+66%</td></tr>
+        <tr><td>Free air</td><td>–</td><td>415.2</td><td>141.9</td><td>49.3</td><td>606.4</td><td>4.40</td><td>0.083</td><td>52.8</td><td>–</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="flap" aria-labelledby="flap-h">
+  <div class="sechead"><span class="no">05 · Design study</span><h2 id="flap-h">Changing one thing: flap 1 angle</h2></div>
+  <div class="prose col">
+    <p>At 50 mm, I rotated flap 1 by ±5° about its leading edge. In the 25° case I moved flap 2 by the same amount, so the slot 2 gap stayed as it was in the baseline.</p>
+  </div>
+  <div class="cols2">
+    <div class="chart" id="chFlap"><h4>Downforce by element, per flap 1 angle</h4><div class="sub">N per metre span, 50 mm ride height</div></div>
+    <div class="prose">
+      <div class="tbl">
+        <table>
+          <thead><tr><th>Flap 1</th><th>Net (N/m)</th><th>Drag (N/m)</th><th>L/D</th></tr></thead>
+          <tbody>
+            <tr><td>15°</td><td>1,298.1 <span class="mono" style="color:var(--ink-3)">−5.6%</span></td><td>45.6 <span class="mono" style="color:var(--ink-3)">−16%</span></td><td>28.5</td></tr>
+            <tr class="hl"><td>~20° (baseline)</td><td>1,374.6</td><td>54.5</td><td>25.2</td></tr>
+            <tr><td>25°</td><td>1,340.0 <span class="mono" style="color:var(--ink-3)">−2.5%</span></td><td>61.4 <span class="mono" style="color:var(--ink-3)">+13%</span></td><td>21.8</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p><b>The baseline is close to the downforce optimum:</b> rotating flap 1 either way loses downforce.</p>
+      <p><b>15° is the efficiency setting.</b> It gives up 5.6% of the downforce for 16% less drag. The main plane loses the most, even though I didn't touch it, because a less-loaded flap does less to pull the flow under the main plane. The elements work as a system.</p>
+      <p><b>25° is worse both ways.</b> Flap 1 makes less downforce for more drag, and flap 2 loses 14% because it sits in flap 1's thicker, slower wake.</p>
+    </div>
+  </div>
+  <div class="grid2">
+    <figure class="fig"><img src="media/f25_vmag.png" alt="Velocity magnitude with flap 1 at 25 degrees showing a thicker slow wake"><figcaption><b>Flap 1 at 25°, speed.</b> The wake behind the flaps is thicker and darker than at the baseline angle.</figcaption></figure>
+    <figure class="fig"><img src="media/f25_xvel.png" alt="x-velocity with flap 1 at 25 degrees: slowed wake that has not reversed"><figcaption><b>Flap 1 at 25°, x-velocity (−5 to +5 m/s).</b> The wake slows to about +1–2 m/s but doesn't reverse. No large separation on the flap, so it's at its limit rather than fully stalled.</figcaption></figure>
+  </div>
+</section>
+
+<section id="threed" aria-labelledby="threed-h">
+  <div class="sechead"><span class="no">06 · 3D</span><h2 id="threed-h">What 2D can't show: tip vortices</h2></div>
+  <div class="prose col">
+    <p>Finally I modelled the 800 mm half-span wing with its endplate at 50 mm, using a symmetry plane and mirroring the result. The student licence capped the mesh at 875k cells, so these numbers are indicative rather than precise. The trends are clear though.</p>
+  </div>
+  <div class="grid3 vids">
+    <figure class="fig"><video src="media/vid_side.mp4" poster="media/vid_side_poster.jpg" autoplay muted loop playsinline aria-label="Streamlines over the 3D wing from the side, rolling up off each endplate"></video><figcaption><b>Side view.</b> Air spills over each endplate and rolls up.</figcaption></figure>
+    <figure class="fig"><video src="media/vid_rear.mp4" poster="media/vid_rear_poster.jpg" autoplay muted loop playsinline aria-label="Rear view of streamlines forming two tip vortices"></video><figcaption><b>From behind.</b> One vortex trails from each tip.</figcaption></figure>
+    <figure class="fig"><video src="media/vid_rear34.mp4" poster="media/vid_rear34_poster.jpg" autoplay muted loop playsinline aria-label="Rear three-quarter view of tip vortices trailing downstream"></video><figcaption><b>Rear three-quarter.</b> Speed peaks (yellow) at the endplate edges.</figcaption></figure>
+  </div>
+  <div class="grid3">
+    <figure class="fig"><img src="media/w3d_front.png" alt="Pathlines from the front and below, wrapping round the endplates"><figcaption><b>From the front, below.</b> Flow speeds up under the endplate foot and curls round it.</figcaption></figure>
+    <figure class="fig"><img src="media/w3d_rear.png" alt="Pathlines from behind showing the two trailing vortices"><figcaption><b>From behind.</b> The vortices spread as they move downstream. The coarse far-field mesh exaggerates how fast they fade.</figcaption></figure>
+    <figure class="fig"><img src="media/w3d_cp.png" alt="Pressure coefficient on the wing underside, strongest suction at mid-span fading towards the endplates"><figcaption><b>Underside pressure coefficient.</b> Suction peaks at mid-span (C<sub>p</sub> ≈ −7.6) and weakens towards both endplates. That's the tip loss.</figcaption></figure>
+  </div>
+  <div class="cols2">
+    <div class="chart" id="ch3D"><h4>2D vs 3D downforce per metre</h4><div class="sub">50 mm ride height</div></div>
+    <div class="prose">
+      <div class="tbl">
+        <table>
+          <thead><tr><th></th><th>2D (N/m)</th><th>3D (N/m)</th><th>3D ÷ 2D</th></tr></thead>
+          <tbody>
+            <tr><td>Main plane</td><td>1,047.0</td><td>651.6</td><td>62%</td></tr>
+            <tr><td>Flap 1</td><td>258.9</td><td>170.6</td><td>66%</td></tr>
+            <tr><td>Flap 2</td><td>68.7</td><td>56.9</td><td>83%</td></tr>
+            <tr class="hl"><td>Net downforce</td><td>1,374.6</td><td>883.4</td><td>64%</td></tr>
+            <tr><td>Net drag</td><td>54.5</td><td>122.8</td><td>2.25×</td></tr>
+            <tr class="hl"><td>L/D</td><td>25.2</td><td>7.2</td><td></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Pressure leaks round the endplate from the high-pressure upper surface to the low-pressure underside, forming the tip vortex. That costs <b>36% of the downforce</b> per metre and adds induced drag, so drag more than doubles. The main plane loses most because its ground-effect suction can now escape sideways. In 2D its drag is negative (the suction pulls it forwards); in 3D it turns slightly positive.</p>
+    </div>
+  </div>
+</section>
+
+<section id="conclusions" aria-labelledby="conc-h">
+  <div class="sechead"><span class="no">07 · Outcome</span><h2 id="conc-h">What I learned and what's next</h2></div>
+  <div class="cols2">
+    <div class="prose">
+      <h3>Findings</h3>
+      <ul class="clean">
+        <li>A validated 2D k-ω SST setup tracks the S1223 lift slope within 9%, with an offset that the turbulent-boundary-layer assumption explains.</li>
+        <li>At its best ride height (50 mm, h/c ≈ 0.2), ground effect gives the wing 2.27× its free-air downforce.</li>
+        <li>Too close to the ground, the wake reverses and downforce falls 29%. Peak downforce and peak efficiency sit at different heights.</li>
+        <li>The baseline flap angle is near the downforce optimum. Flattening flap 1 by 5° raises efficiency by 13%.</li>
+        <li>In 3D, tip vortices remove about a third of the 2D downforce and more than double the drag.</li>
+      </ul>
+    </div>
+    <div class="prose">
+      <h3>Limitations &amp; next steps</h3>
+      <ul class="clean">
+        <li>Rerun with Transition SST to capture laminar flow and close the gap to XFoil.</li>
+        <li>Add 35 and 40 mm cases to pin down exactly where the wake starts to reverse.</li>
+        <li>The 3D mesh is coarse (y⁺ ≈ 20–50) because of the licence limit. A finer mesh would firm up the 3D numbers.</li>
+        <li>Use the 3D pressure loads for an FEA check of wing bending.</li>
+        <li>Next project: a full car model in SolidWorks Flow Simulation.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <span>Cooper · Mechanical Engineering, Queen's University Belfast</span>
+  <span>Simulations: Ansys Student 2026 R1 · CAD: SolidWorks Student 2026</span>
+</footer>
+</div>
+
+<div id="lb" hidden role="dialog" aria-modal="true" aria-label="Enlarged image"><img alt=""></div>
+<div class="tip" id="tip" hidden></div>
+
+<script>
+(function(){
+const NS="http://www.w3.org/2000/svg";
+const tip=document.getElementById('tip');
+function el(tag,attrs,parent){const e=document.createElementNS(NS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);if(parent)parent.appendChild(e);return e}
+function txt(parent,x,y,s,attrs){const t=el('text',Object.assign({x,y},attrs||{}),parent);t.textContent=s;return t}
+function nice(min,max,n){const span=max-min;const step0=span/n;const mag=Math.pow(10,Math.floor(Math.log10(step0)));const r=step0/mag;const step=(r<1.5?1:r<3?2:r<7?5:10)*mag;const lo=Math.floor(min/step)*step,hi=Math.ceil(max/step)*step;const t=[];for(let v=lo;v<=hi+step/2;v+=step)t.push(+v.toFixed(10));return t}
+const fmt=(v,d)=>v.toLocaleString('en-GB',{minimumFractionDigits:d||0,maximumFractionDigits:d||0});
+function legend(host,items){const L=document.createElement('div');L.className='legend';items.forEach(it=>{const s=document.createElement('span');const i=document.createElement('i');if(it.dash)i.className='dash';if(it.sq)i.className='sq';if(!it.dash)i.style.background=`var(${it.c})`;s.append(i,it.n);L.appendChild(s)});host.appendChild(L)}
+function showTip(host,html,x,y){tip.innerHTML=html;tip.hidden=false;const hr=host.getBoundingClientRect();host.appendChild(tip);const tw=tip.offsetWidth;let left=x+14;if(left+tw>hr.width-6)left=x-tw-14;tip.style.left=Math.max(4,left)+'px';tip.style.top=Math.max(4,y-10)+'px'}
+function hideTip(){tip.hidden=true}
+
+function line(id,o){
+  const host=document.getElementById(id);
+  if(o.legend)legend(host,o.legend);
+  const W=600,H=320,m={l:68,r:o.rpad||18,t:14,b:50};
+  const svg=el('svg',{viewBox:`0 0 ${W} ${H}`,class:'c',role:'img','aria-label':o.aria},host);
+  const xmin=o.xmin,xmax=o.xmax;const yt=nice(o.ymin,o.ymax,5);const ymin=yt[0],ymax=yt[yt.length-1];
+  const X=v=>m.l+(v-xmin)/(xmax-xmin)*(W-m.l-m.r), Y=v=>H-m.b-(v-ymin)/(ymax-ymin)*(H-m.t-m.b);
+  yt.forEach(v=>{el('line',{x1:m.l,x2:W-m.r,y1:Y(v),y2:Y(v),class:'gl'},svg);txt(svg,m.l-8,Y(v)+4,fmt(v,o.yd),{'text-anchor':'end'})});
+  (o.xticks).forEach(v=>{txt(svg,X(v),H-m.b+16,o.xfmt?o.xfmt(v):v,{'text-anchor':'middle'})});
+  el('line',{x1:m.l,x2:W-m.r,y1:H-m.b,y2:H-m.b,class:'ax'},svg);
+  txt(svg,(m.l+W-m.r)/2,H-8,o.xTitle,{'text-anchor':'middle',class:'t'});
+  txt(svg,14,(m.t+H-m.b)/2,o.yTitle,{'text-anchor':'middle',class:'t',transform:`rotate(-90 14 ${(m.t+H-m.b)/2})`});
+  if(o.ref){el('line',{x1:m.l,x2:W-m.r,y1:Y(o.ref.v),y2:Y(o.ref.v),style:'stroke:var(--ref);stroke-width:1.5','stroke-dasharray':'5 4'},svg);txt(svg,W-m.r-2,Y(o.ref.v)-6,o.ref.label,{'text-anchor':'end',class:'t'})}
+  o.series.forEach(s=>{
+    const d=s.v.map((v,i)=>(i?'L':'M')+X(o.x[i]).toFixed(1)+' '+Y(v).toFixed(1)).join('');
+    el('path',{d,style:`fill:none;stroke:var(${s.c});stroke-width:2;stroke-linejoin:round`},svg);
+    s.v.forEach((v,i)=>{el('circle',{cx:X(o.x[i]),cy:Y(v),r:4.5,style:`fill:var(${s.c});stroke:var(--sheet);stroke-width:2`},svg)});
+    if(s.endLabel){const i=s.v.length-1;txt(svg,X(o.x[i])+9,Y(s.v[i])+4,s.endLabel,{class:'lbl'})}
+  });
+  (o.notes||[]).forEach(n=>{txt(svg,X(n.x)+(n.dx||0),Y(n.y)+(n.dy||0),n.t,{'text-anchor':n.anchor||'start',class:'lbl'})});
+  // hover
+  const cross=el('line',{y1:m.t,y2:H-m.b,style:'stroke:var(--ink-3);stroke-width:1',visibility:'hidden'},svg);
+  const hit=el('rect',{x:m.l,y:m.t,width:W-m.l-m.r,height:H-m.t-m.b,style:'fill:transparent'},svg);
+  function move(ev){const r=svg.getBoundingClientRect();const sx=(ev.clientX-r.left)/r.width*W;let bi=0,bd=1e9;o.x.forEach((xv,i)=>{const dd=Math.abs(X(xv)-sx);if(dd<bd){bd=dd;bi=i}});
+    cross.setAttribute('x1',X(o.x[bi]));cross.setAttribute('x2',X(o.x[bi]));cross.setAttribute('visibility','visible');
+    const hr=host.getBoundingClientRect();const px=r.left-hr.left+X(o.x[bi])/W*r.width, py=r.top-hr.top+Y(o.series[0].v[bi])/H*r.height;
+    showTip(host,`<b>${o.tipX(bi)}</b><br>`+o.series.map(s=>`${s.n}: ${fmt(s.v[bi],o.td||0)}${o.unit||''}`).join('<br>'),px,py)}
+  hit.addEventListener('pointermove',move);hit.addEventListener('pointerleave',()=>{cross.setAttribute('visibility','hidden');hideTip()});
+}
+
+function bars(id,o){
+  const host=document.getElementById(id);
+  if(o.legend)legend(host,o.legend);
+  const W=600,H=300,m={l:68,r:12,t:14,b:44};
+  const svg=el('svg',{viewBox:`0 0 ${W} ${H}`,class:'c',role:'img','aria-label':o.aria},host);
+  const yt=nice(0,o.ymax,5);const ymax=yt[yt.length-1];const Y=v=>H-m.b-v/ymax*(H-m.t-m.b);
+  yt.forEach(v=>{el('line',{x1:m.l,x2:W-m.r,y1:Y(v),y2:Y(v),class:'gl'},svg);txt(svg,m.l-8,Y(v)+4,fmt(v),{'text-anchor':'end'})});
+  txt(svg,14,(m.t+H-m.b)/2,o.yTitle,{'text-anchor':'middle',class:'t',transform:`rotate(-90 14 ${(m.t+H-m.b)/2})`});
+  const nc=o.cats.length,ns=o.series.length;const gw=(W-m.l-m.r)/nc;const inner=gw*0.72;const bw=(inner-(ns-1)*2)/ns;
+  o.cats.forEach((c,ci)=>{
+    const gx=m.l+ci*gw+(gw-inner)/2;
+    txt(svg,m.l+ci*gw+gw/2,H-m.b+18,c,{'text-anchor':'middle',class:'t'});
+    o.series.forEach((s,si)=>{const v=s.v[ci];const x=gx+si*(bw+2),y=Y(v),h=H-m.b-y;const r=Math.min(4,bw/2,h);
+      const d=`M${x},${H-m.b}V${y+r}Q${x},${y} ${x+r},${y}H${x+bw-r}Q${x+bw},${y} ${x+bw},${y+r}V${H-m.b}Z`;
+      const p=el('path',{d,style:`fill:var(${s.c})`},svg);
+      const hit=el('rect',{x:x-1,y:m.t,width:bw+2,height:H-m.b-m.t,style:'fill:transparent'},svg);
+      hit.addEventListener('pointermove',ev=>{const r=svg.getBoundingClientRect(),hr=host.getBoundingClientRect();showTip(host,`<b>${c} · ${s.n}</b><br>${fmt(v,o.td||1)} ${o.unit||''}`,r.left-hr.left+(x+bw/2)/W*r.width,r.top-hr.top+y/H*r.height);p.style.opacity=.85});
+      hit.addEventListener('pointerleave',()=>{hideTip();p.style.opacity=1});
+    });
+  });
+  el('line',{x1:m.l,x2:W-m.r,y1:H-m.b,y2:H-m.b,class:'ax'},svg);
+}
+
+// 01 validation
+line('chVal',{x:[0,4,8],xmin:-0.5,xmax:8.5,xticks:[0,2,4,6,8],xfmt:v=>v+'°',ymin:0.8,ymax:2.1,yd:1,td:3,
+  xTitle:'Angle of attack',yTitle:'Lift coefficient Cl',aria:'Lift coefficient against angle: Fluent sits 13 to 16 percent below XFoil with similar slope',
+  legend:[{n:'Fluent k-ω SST',c:'--s1'},{n:'XFoil (Ncrit 9)',c:'--s2'}],
+  series:[{n:'Fluent',c:'--s1',v:[1.000,1.411,1.758]},{n:'XFoil',c:'--s2',v:[1.185,1.637,2.013]}],tipX:i=>['0°','4°','8°'][i]});
+
+// 03 mesh
+line('chMesh',{x:[25235,32055,45432],xmin:22000,xmax:48000,xticks:[25000,35000,45000],xfmt:v=>(v/1000)+'k',ymin:1240,ymax:1400,
+  xTitle:'Cells',yTitle:'Net downforce (N/m)',aria:'Net downforce rises from 1261 to 1345 to 1375 N per metre as the mesh is refined',unit:' N/m',td:1,
+  series:[{n:'Net downforce',c:'--s1',v:[1260.6,1345.4,1374.6]}],tipX:i=>['Coarse 1.0 mm','Medium 0.75 mm','Fine 0.5 mm'][i],
+  notes:[{x:28645,y:1303,t:'+6.7%',dx:-8,dy:-4,anchor:'end'},{x:38743,y:1360,t:'+2.2%',dy:-12,anchor:'middle'}]});
+
+// 04 ride height
+const hc=[0.1,0.2,0.3,0.4,0.5,0.6];
+const mm=['25 mm','50 mm','75 mm','100 mm','125 mm','150 mm'];
+line('chRH',{x:hc,xmin:0.05,xmax:0.65,xticks:hc,xfmt:v=>v.toFixed(1),ymin:0,ymax:1500,
+  xTitle:'Ride height ratio h/c',yTitle:'Net downforce (N/m)',aria:'Net downforce peaks at 1375 N per metre at h/c 0.2 and falls to 981 at h/c 0.1; free air is 606',unit:' N/m',td:1,
+  ref:{v:606.4,label:'Free air: 606 N/m'},
+  series:[{n:'Net downforce',c:'--s1',v:[980.9,1374.6,1314.6,1183.4,1084.9,1006.8]}],tipX:i=>`${mm[i]} · h/c ${hc[i].toFixed(1)}`,
+  notes:[{x:0.2,y:1374.6,t:'1,375 peak',dy:-12,anchor:'middle'},{x:0.1,y:980.9,t:'wake reverses',dx:8,dy:22}]});
+line('chEl',{x:hc,xmin:0.05,xmax:0.65,xticks:hc,xfmt:v=>v.toFixed(1),ymin:0,ymax:1100,rpad:72,
+  xTitle:'Ride height ratio h/c',yTitle:'Downforce (N/m)',aria:'Main plane downforce varies most with ride height; flaps change little',unit:' N/m',td:1,
+  legend:[{n:'Main plane',c:'--s1'},{n:'Flap 1',c:'--s2'},{n:'Flap 2',c:'--s3'}],
+  series:[{n:'Main',c:'--s1',v:[759.9,1047.0,969.2,854.7,772.6,710.4],endLabel:'Main'},{n:'Flap 1',c:'--s2',v:[164.9,258.9,271.3,256.6,241.2,227.6],endLabel:'Flap 1'},{n:'Flap 2',c:'--s3',v:[56.1,68.7,74.0,72.1,71.1,68.8],endLabel:'Flap 2'}],tipX:i=>mm[i]});
+line('chLD',{x:hc,xmin:0.05,xmax:0.65,xticks:hc,xfmt:v=>v.toFixed(1),ymin:0,ymax:60,
+  xTitle:'Ride height ratio h/c',yTitle:'L/D',aria:'Lift to drag ratio rises from 11.9 at h/c 0.1 to 45.5 at 0.6; free air is 52.8',td:1,
+  ref:{v:52.8,label:'Free air: 52.8'},
+  series:[{n:'L/D',c:'--s1',v:[11.9,25.2,34.1,39.6,43.0,45.5]}],tipX:i=>mm[i]});
+
+// 05 flap
+bars('chFlap',{cats:['15°','~20° base','25°'],ymax:1100,yTitle:'Downforce (N/m)',unit:'N/m',
+  aria:'Main plane downforce is highest at the baseline flap angle',
+  legend:[{n:'Main plane',c:'--s1',sq:1},{n:'Flap 1',c:'--s2',sq:1},{n:'Flap 2',c:'--s3',sq:1}],
+  series:[{n:'Main',c:'--s1',v:[970.2,1047.0,1037.8]},{n:'Flap 1',c:'--s2',v:[247.3,258.9,243.4]},{n:'Flap 2',c:'--s3',v:[80.7,68.7,58.9]}]});
+
+// 06 3D
+bars('ch3D',{cats:['Main','Flap 1','Flap 2','Net'],ymax:1400,yTitle:'Downforce (N/m)',unit:'N/m',
+  aria:'3D downforce per metre is lower than 2D for every element; net 883 vs 1375',
+  legend:[{n:'2D section',c:'--s1',sq:1},{n:'3D half-wing',c:'--s2',sq:1}],
+  series:[{n:'2D',c:'--s1',v:[1047.0,258.9,68.7,1374.6]},{n:'3D',c:'--s2',v:[651.6,170.6,56.9,883.4]}]});
+
+// lightbox
+const lb=document.getElementById('lb'),lbi=lb.querySelector('img');
+document.querySelectorAll('.fig img,.matrix img').forEach(im=>{im.tabIndex=0;const open=()=>{lbi.src=im.src;lbi.alt=im.alt;lb.hidden=false};im.addEventListener('click',open);im.addEventListener('keydown',e=>{if(e.key==='Enter')open()})});
+lb.addEventListener('click',()=>{lb.hidden=true});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')lb.hidden=true});
+
+// respect reduced motion
+if(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches){document.querySelectorAll('video').forEach(v=>{v.removeAttribute('autoplay');v.pause();v.controls=true})}
+})();
+</script>
+
+</body>
+</html>
